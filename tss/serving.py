@@ -35,9 +35,9 @@ def load_meta_graph(model_path, tags, graph, signature_def_key=None):
 
 def get_model(model_base_path, version=None):
     versions = {} 
-    model_base_path = model_base_path.strip('/')
+    model_base_path = model_base_path.rstrip('/')
     for version in tf.gfile.ListDirectory(model_base_path):
-        version = version.strip('/')
+        version = version.rstrip('/')
         if version.isdigit():
             versions[int(version)] = '/'.join([model_base_path, version])
     if version is None:
