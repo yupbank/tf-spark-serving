@@ -79,4 +79,5 @@ def tf_serving_with_dataframe(df, model_base_path, model_version=None):
     with g.as_default():
         df = rename_by_mapping(df, feed_tensors)
         df = tfs.map_blocks(fetch_tensors.values(), df)
+        df = rename_by_mapping(df, feed_tensors, reverse=True)
         return rename_by_mapping(df, fetch_tensors, reverse=True)
