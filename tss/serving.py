@@ -74,10 +74,10 @@ def tf_serving_with_dataframe(df, model_base_path, model_version=None):
     :return: spark dataframe, with predicted result.
     """
     import tensorframes as tfs
-    df = tfs.analyze(df)
     g, feed_tensors, fetch_tensors = load_model(model_base_path, model_version)
     with g.as_default():
         df = rename_by_mapping(df, feed_tensors)
+        df = tfs.analyze(df)
         df = tfs.map_blocks(fetch_tensors.values(), df)
         df = rename_by_mapping(df, feed_tensors, reverse=True)
         return rename_by_mapping(df, fetch_tensors, reverse=True)
