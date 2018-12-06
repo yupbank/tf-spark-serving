@@ -30,7 +30,8 @@ def export_saved_model(inputs, outputs, output_dir, model_version, graph, sess=N
             logging.info('Exporting trained model to %s' % output_path)
             builder = tf.saved_model.builder.SavedModelBuilder(tmp_path)
 
-            legacy_init_op = tf.group(tf.tables_initializer(), name='legacy_init_op')
+            legacy_init_op = tf.group(
+                tf.tables_initializer(), name='legacy_init_op')
             signature = (
                 tf.saved_model.signature_def_utils.build_signature_def(
                     inputs={
@@ -42,7 +43,7 @@ def export_saved_model(inputs, outputs, output_dir, model_version, graph, sess=N
                         for k, v in outputs.items()
                     },
                     method_name=method_name)
-               )
+            )
 
             builder.add_meta_graph_and_variables(
                 sess, [tf.saved_model.tag_constants.SERVING],
@@ -51,13 +52,13 @@ def export_saved_model(inputs, outputs, output_dir, model_version, graph, sess=N
                     DEFAULT_SERVING_SIGNATURE_DEF_KEY:
                         signature,
                 },
-                legacy_init_op=legacy_init_op))
+                legacy_init_op=legacy_init_op)
             builder.save()
 
     try:
         tf.gfile.Rename(tmp_path, output_path, overwrite=overwrite)
     except:
-        raise Exception('Model version already exists: %s'%output_path)
+        raise Exception('Model version already exists: %s' % output_path)
 
     if tf.gfile.Exists(tmp_path):
         tf.gfile.DeleteRecursively(tmp_path)
