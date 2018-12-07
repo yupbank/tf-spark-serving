@@ -17,12 +17,15 @@ def load_meta_graph(model_path, tags, graph, signature_def_key=None):
             signature_def_key)
     except ValueError as ex:
         try:
-            formatted_key = 'default_input_alternative:{}'.format(signature_def_key)
-            signature_def = signature_def_utils.get_signature_def_by_key(the_meta_graph, formatted_key)
+            formatted_key = 'default_input_alternative:{}'.format(
+                signature_def_key)
+            signature_def = signature_def_utils.get_signature_def_by_key(
+                the_meta_graph, formatted_key)
         except ValueError:
             raise ValueError(
                 'Got signature_def_key "{}". Available signatures are {}. '
-                'Original error:\n{}'.format(signature_def_key, list(the_meta_graph.signature_def), ex)
+                'Original error:\n{}'.format(
+                    signature_def_key, list(the_meta_graph.signature_def), ex)
             )
     input_names = {k: v.name for k, v in signature_def.inputs.items()}
     output_names = {k: v.name for k, v in signature_def.outputs.items()}
@@ -34,7 +37,7 @@ def load_meta_graph(model_path, tags, graph, signature_def_key=None):
 
 
 def get_model(model_base_path, version=None):
-    versions = {} 
+    versions = {}
     model_base_path = model_base_path.rstrip('/')
     for version in tf.gfile.ListDirectory(model_base_path):
         version = version.rstrip('/')
@@ -42,7 +45,8 @@ def get_model(model_base_path, version=None):
             versions[int(version)] = '/'.join([model_base_path, version])
     if version is None:
         version = max(versions.keys())
-    logging.info('Choose model_path %s with version %s'%(model_base_path, version))
+    logging.info('Choose model_path %s with version %s' %
+                 (model_base_path, version))
     return versions[int(version)]
 
 
@@ -53,7 +57,14 @@ def load_model(model_base_path, model_version):
         tags = [tf.saved_model.tag_constants.SERVING]
         tf.saved_model.loader.load(sess, tags, model_path)
         feed_tensors, fetch_tensors = load_meta_graph(model_path, tags, graph)
-        return graph, feed_tensors, fetch_tensors
+        output_graph_def = tf.graph_util.convert_variables_to_constants(sess,
+                                                                        graph.as_graph_def(add_shapes=True),
+                                                                        [fetch.op.name for fetch in fetch_tensors.values()])
+    with tf.Graph().as_default() as graph:
+        tf.import_graph_def(output_graph_def, name='')
+        return graph, \
+            {name: graph.get_tensor_by_name(feed.name) for name, feed in feed_tensors.items()},\
+            {name: graph.get_tensor_by_name(fetch.name) for name, fetch in fetch_tensors.items()}
 
 
 def rename_by_mapping(df, tensor_mapping, reverse=False):
