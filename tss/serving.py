@@ -58,13 +58,15 @@ def load_model(model_base_path, model_version):
         tf.saved_model.loader.load(sess, tags, model_path)
         feed_tensors, fetch_tensors = load_meta_graph(model_path, tags, graph)
         output_graph_def = tf.graph_util.convert_variables_to_constants(sess,
-                                                                        graph.as_graph_def(add_shapes=True),
+                                                                        graph.as_graph_def(
+                                                                            add_shapes=True),
                                                                         [fetch.op.name for fetch in fetch_tensors.values()])
     with tf.Graph().as_default() as graph:
         tf.import_graph_def(output_graph_def, name='')
         return graph, \
             {name: graph.get_tensor_by_name(feed.name) for name, feed in feed_tensors.items()},\
-            {name: graph.get_tensor_by_name(fetch.name) for name, fetch in fetch_tensors.items()}
+            {name: graph.get_tensor_by_name(fetch.name)
+             for name, fetch in fetch_tensors.items()}
 
 
 def rename_by_mapping(df, tensor_mapping, reverse=False):
@@ -74,6 +76,10 @@ def rename_by_mapping(df, tensor_mapping, reverse=False):
             renames = reversed(renames)
         df = df.withColumnRenamed(*renames)
     return df
+
+
+def tf_serving_with_pandas(df, model_base_path, model_version=None):
+    from pyspark.sql.functions import pandas_udf, PandasUDFType
 
 
 def tf_serving_with_dataframe(df, model_base_path, model_version=None):
