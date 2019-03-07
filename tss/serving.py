@@ -3,6 +3,8 @@ from tensorflow.contrib.saved_model.python.saved_model import reader
 from tensorflow.contrib.saved_model.python.saved_model import signature_def_utils
 import logging
 
+from utils import load_model, fetch_tensors_spark_schema, GraphDefPredictor, pandas_model_inference
+
 
 def load_meta_graph(model_path, tags, graph, signature_def_key=None):
     saved_model = reader.read_saved_model(model_path)
@@ -80,6 +82,30 @@ def rename_by_mapping(df, tensor_mapping, reverse=False):
 
 def tf_serving_with_pandas(df, model_base_path, model_version=None):
     from pyspark.sql.functions import pandas_udf, PandasUDFType
+
+
+def tf_serving_with_broadcasted_model(df, model_base_path=None, model_version=None, model_full_path=None, signature_def_key=None):
+    import pyspark.sql.functions as F
+    import pyspark.sql.types as T
+    model = load_model(model_base_path, model_version,
+                       model_full_path, signature_def_key)
+    tf_output_schema = fetch_tensors_spark_schema(model.fetch_tensors)
+    output_schema = T.StructType(df.schema.fields + tf_output_schema.fields)
+
+    graph_def, feed_names, fetch_names, extra_ops = GraphDefPredictor.export_model(
+        model)
+    graph_def_serialized_bc = df.rdd.context.broadcast(graph_def)
+
+    def func(pandas_df):
+        """
+        Batch inference on a panda dataframe
+        """
+        predictor_model = GraphDefPredictor(
+            graph_def_serialized_bc.value, feed_names, fetch_names, extra_ops)
+        return pandas_model_inference(predictor_model, pandas_df, output_schema.fieldNames())
+
+    inference = F.pandas_udf(func, output_schema, F.PandasUDFType.GROUPED_MAP)
+    return df.groupby(F.spark_partition_id()).apply(inference)
 
 
 def tf_serving_with_dataframe(df, model_base_path, model_version=None):
